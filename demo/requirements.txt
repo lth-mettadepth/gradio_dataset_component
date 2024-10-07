@@ -1,1 +1,1 @@
-gradio_dataset_component
+gradio_dataset

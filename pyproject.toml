@@ -7,7 +7,7 @@ requires = [
 build-backend = "hatchling.build"
 
 [project]
-name = "gradio_dataset_component"
+name = "gradio_dataset"
 version = "0.0.1"
 description = "Python library for easily interacting with trained machine learning models"
 readme = "README.md"
@@ -48,7 +48,7 @@ classifiers = [
 dev = ["build", "twine"]
 
 [tool.hatch.build]
-artifacts = ["/backend/gradio_dataset_component/templates", "*.pyi"]
+artifacts = ["/backend/gradio_dataset/templates", "*.pyi"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["/backend/gradio_dataset_component"]
+packages = ["/backend/gradio_dataset"]

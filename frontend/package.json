@@ -1,6 +1,6 @@
 {
-  "name": "gradio_dataset_component",
-  "version": "0.1.43",
+  "name": "gradio_dataset",
+  "version": "0.2.5",
   "description": "Gradio UI packages",
   "type": "module",
   "author": "",
@@ -15,9 +15,18 @@
     "@gradio/atoms": "0.7.4",
     "@gradio/client": "1.1.1",
     "@gradio/utils": "0.4.2",
-    "@gradio/upload": "0.11.2"
+    "@gradio/upload": "0.11.2",
+    "@gradio/textbox": "0.7.0"
   },
   "devDependencies": {
-    "@gradio/preview": "0.9.1"
+    "@gradio/preview": "0.11.2"
+  },
+  "peerDependencies": {
+    "svelte": "^4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gradio-app/gradio.git",
+    "directory": "js/dataset"
   }
 }
