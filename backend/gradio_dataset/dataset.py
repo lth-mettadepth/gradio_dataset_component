@@ -45,6 +45,7 @@ class dataset(Component):
         sample_labels: list[str] | None = None,
         menu_icon: str | None = None,
         menu_choices: List[str] | None = None,
+        header_sort: bool = False,
     ):
         """
         Parameters:
@@ -79,6 +80,9 @@ class dataset(Component):
 
         self.menu_icon = menu_icon
         self.menu_choices = menu_choices or []
+        self.header_sort = header_sort
+        self.sort_column = None
+        self.sort_order = None
 
         if component_props is None:
             self.component_props = [
@@ -130,8 +134,28 @@ class dataset(Component):
         self.samples_per_page = samples_per_page
         self.sample_labels = sample_labels
 
-    def api_info(self) -> dict[str, str]:
-        return {"type": "integer", "description": "index of selected example"}
+    # def api_info(self) -> dict[str, str]:
+    #     return {"type": "integer", "description": "index of selected example"}
+    def api_info(self) -> dict[str, Any]:
+        return {
+            "type": {
+                "payload": "object",
+                "properties": {
+                    "index": {"type": "integer"},
+                    "sort": {
+                        "type": "object",
+                        "properties": {
+                            "column": {"type": "integer"},
+                            "order": {
+                                "type": "string",
+                                "enum": ["ascending", "descending"],
+                            },
+                        },
+                    },
+                },
+            },
+            "description": "index of selected example or sorting information",
+        }
 
     def get_config(self):
         config = super().get_config()
@@ -148,7 +172,22 @@ class dataset(Component):
 
             config["component_ids"].append(component._id)
 
+        config["header_sort"] = self.header_sort
+        config["sort_column"] = self.sort_column
+        config["sort_order"] = self.sort_order
         return config
+
+    def sort_samples(self, column_index: int, order: str):
+        if not self.header_sort:
+            return
+
+        self.sort_column = column_index
+        self.sort_order = order
+
+        def sort_key(sample):
+            return sample[column_index]
+
+        self.samples.sort(key=sort_key, reverse=(order == "descending"))
 
     def preprocess(self, payload: int | None) -> int | list | tuple[int, list] | None:
         """
@@ -161,6 +200,9 @@ class dataset(Component):
         #     return None
         if isinstance(payload, dict) and "menu_choice" in payload:
             return {"index": payload["index"], "menu_choice": payload["menu_choice"]}
+        if "sort" in payload:
+            self.sort_samples(payload["sort"]["column"], payload["sort"]["order"])
+            return None
         if self.type == "index":
             return payload
         elif self.type == "values":

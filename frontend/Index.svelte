@@ -27,6 +27,9 @@
   export let min_width: number | undefined = undefined;
   export let menu_icon: string | null = null;
   export let menu_choices: string[] = [];
+  export let header_sort = false;
+  export let sort_column: number | null = null;
+  export let sort_order: "ascending" | "descending" | null = null;
   export let gradio: Gradio<{
     click: number;
     select: SelectData;
@@ -64,6 +67,34 @@
         active_menu = null;
       }
     }, 100);
+  }
+
+  function handleSort(columnIndex: number) {
+    if (!header_sort) return;
+
+    if (sort_column === columnIndex) {
+      sort_order = sort_order === "ascending" ? "descending" : "ascending";
+    } else {
+      sort_column = columnIndex;
+      sort_order = "ascending";
+    }
+
+    gradio.dispatch("select", {
+      sort: { column: sort_column, order: sort_order },
+    });
+  }
+
+  $: sortedSamples = [...samples];
+  $: {
+    if (header_sort && sort_column !== null && sort_order !== null) {
+      sortedSamples.sort((a, b) => {
+        const aValue = a[sort_column];
+        const bValue = b[sort_column];
+        if (aValue < bValue) return sort_order === "ascending" ? -1 : 1;
+        if (aValue > bValue) return sort_order === "ascending" ? 1 : -1;
+        return 0;
+      });
+    }
   }
 
   function handle_menu_click(
@@ -213,7 +244,18 @@
           <tr class="tr-head">
             {#each headers as header}
               <th>
-                {header}
+                {#if header_sort}
+                  <button on:click={() => handleSort(i)} class="sort-button">
+                    {header}
+                    {#if sort_column === i}
+                      <span class="sort-icon"
+                        >{sort_order === "ascending" ? "▲" : "▼"}</span
+                      >
+                    {/if}
+                  </button>
+                {:else}
+                  {header}
+                {/if}
               </th>
             {/each}
             {#if menu_choices.length > 0}
@@ -223,6 +265,7 @@
         </thead>
         <tbody>
           {#each component_meta as sample_row, i}
+          <!-- {#each sortedSamples as sample_row, i} -->
             <tr
               class="tr-body"
               on:click={() => {
@@ -455,8 +498,8 @@
 
   .menu-popup {
     position: absolute;
-    right: 0;
-    top: 100%;
+    right: 60%;
+    top: 0;
     background: var(--background-fill-primary);
     border: 1px solid var(--border-color-primary);
     border-radius: var(--radius-lg);
@@ -481,5 +524,23 @@
 
   .menu-item + .menu-item {
     border-top: 1px solid var(--border-color-primary);
+  }
+
+  .sort-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: inherit;
+    color: inherit;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sort-icon {
+    margin-left: 0.5em;
   }
 </style>
