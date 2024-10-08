@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./styles.css";
   import { Block } from "@gradio/atoms";
   import type { SvelteComponent, ComponentType } from "svelte";
   import type { Gradio, SelectData } from "@gradio/utils";
@@ -36,7 +37,7 @@
   }>;
 
   $: default_menu_icon =
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='1'%3E%3C/circle%3E%3Ccircle cx='12' cy='5' r='1'%3E%3C/circle%3E%3Ccircle cx='12' cy='19' r='1'%3E%3C/circle%3E%3C/svg%3E";
+    "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.1/icons/three-dots-vertical.svg";
 
   // Although the `samples_dir` prop is not used in any of the core Gradio component, it is kept for backward compatibility
   // with any custom components created with gradio<=4.20.0
@@ -106,7 +107,8 @@
     const actualIndex = index + page * samples_per_page;
     gradio.dispatch("select", {
       index: actualIndex,
-      value: { index: actualIndex, menu_choice },
+      value: { menu_choice },
+      row_value: samples[actualIndex],
     });
     active_menu = null;
   }
@@ -210,7 +212,10 @@
             on:click={() => {
               value = i + page * samples_per_page;
               gradio.dispatch("click", value);
-              gradio.dispatch("select", { index: value, value: sample_row });
+              gradio.dispatch("select", {
+                index: value,
+                value: sample_row,
+              });
             }}
             on:mouseenter={() => handle_mouseenter(i)}
             on:mouseleave={() => handle_mouseleave()}
@@ -242,12 +247,15 @@
       <table tabindex="0" role="grid">
         <thead>
           <tr class="tr-head">
-            {#each headers as header}
+            {#each headers as header, index}
               <th>
                 {#if header_sort}
-                  <button on:click={() => handleSort(i)} class="sort-button">
+                  <button
+                    on:click={() => handleSort(index)}
+                    class="sort-button"
+                  >
                     {header}
-                    {#if sort_column === i}
+                    {#if sort_column === index}
                       <span class="sort-icon"
                         >{sort_order === "ascending" ? "▲" : "▼"}</span
                       >
@@ -265,16 +273,8 @@
         </thead>
         <tbody>
           {#each component_meta as sample_row, i}
-          <!-- {#each sortedSamples as sample_row, i} -->
-            <tr
-              class="tr-body"
-              on:click={() => {
-                value = i + page * samples_per_page;
-                gradio.dispatch("click", value);
-              }}
-              on:mouseenter={() => handle_mouseenter(i)}
-              on:mouseleave={() => handle_mouseleave()}
-            >
+            <!-- {#each sortedSamples as sample_row, i} -->
+            <tr class="tr-body">
               {#each sample_row as { value, component }, j}
                 {@const component_name = components[j]}
                 {#if component_name !== undefined && component_map.get(component_name) !== undefined}
@@ -283,6 +283,18 @@
                       ? '35ch'
                       : 'auto'}"
                     class={component_name}
+                    on:click={() => {
+                      // value = i + page * samples_per_page;
+                      gradio.dispatch("click", value);
+                      gradio.dispatch("select", {
+                        index: [i, j],
+                        value: value,
+                        row_value: sample_row,
+                      });
+                      console.log("row", i, "col", j, "value", sample_row);
+                    }}
+                    on:mouseenter={() => handle_mouseenter(i)}
+                    on:mouseleave={() => handle_mouseleave()}
                   >
                     <svelte:component
                       this={component}
@@ -305,7 +317,12 @@
                     on:click|stopPropagation={() =>
                       (active_menu = active_menu === i ? null : i)}
                   >
-                    <img src={menu_icon} alt="Menu" class="menu-icon" />
+                    <img
+                      src={menu_icon ? menu_icon : default_menu_icon}
+                      alt="Menu"
+                      class="menu-icon"
+                      style="transform: {menu_icon ? 'none' : 'rotate(90deg)'}"
+                    />
                   </button>
 
                   {#if active_menu === i}
@@ -399,6 +416,7 @@
     line-height: var(--line-sm);
     color: var(--table-text-color);
   }
+
   table {
     width: var(--size-full);
   }
@@ -466,12 +484,6 @@
     font-weight: var(--weight-bold);
   }
 
-  .menu-icon {
-    width: 20px;
-    height: 20px;
-    display: block;
-  }
-
   .menu-cell {
     position: relative;
     width: 40px;
@@ -498,14 +510,17 @@
 
   .menu-popup {
     position: absolute;
-    right: 60%;
-    top: 0;
+    right: 75%;
+    top: 50%;
+    transform: translateY(-50%);
     background: var(--background-fill-primary);
     border: 1px solid var(--border-color-primary);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-drop-lg);
     z-index: 1000;
-    min-width: 120px;
+    min-width: 100px;
+    width: max-content;
+    padding: 4px 8px;
   }
 
   .menu-item {
@@ -516,10 +531,17 @@
     background: none;
     border: none;
     cursor: pointer;
+    padding: 4px 8px;
+    background-size: 0 100%;
+    background-repeat: no-repeat;
+    transition: all 0.5s;
   }
 
   .menu-item:hover {
-    background: var(--color-accent-soft);
+    background-image: linear-gradient(to right, #fff3eb, #fff3eb);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    transition: all 0.5s;
   }
 
   .menu-item + .menu-item {

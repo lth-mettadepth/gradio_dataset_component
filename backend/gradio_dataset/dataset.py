@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Literal, Sequence, List
+from typing import Any, Literal, Sequence, List, Callable
 
 from gradio_client.documentation import document
-
+import gradio as gr
 from gradio import processing_utils
 from gradio.components.base import (
     Component,
@@ -235,3 +235,46 @@ class dataset(Component):
 
     def example_value(self) -> Any:
         return []
+
+    def select(
+        self,
+        fn: Callable,
+        inputs: list[gr.components.Component] | None = None,
+        outputs: list[gr.components.Component] | None = None,
+        api_name: str | None = None,
+        **kwargs,
+    ) -> gr.EventListener:
+        """
+        Enhanced select event handler that handles both row clicks and menu selections.
+        """
+        if inputs is None:
+            inputs = []
+        if outputs is None:
+            outputs = []
+
+        def wrapped_fn(evt: gr.SelectData | dict) -> Any:
+            # Handle menu selection events
+            if isinstance(evt, dict):
+                if "menu_choice" in evt:
+                    return fn(gr.SelectData(evt["index"], evt["menu_choice"]))
+                elif "sort" in evt:
+                    return None
+                elif "index" in evt:  # Handle row click events
+                    index = evt["index"]
+                    if self.type == "index":
+                        return fn(gr.SelectData(index, index))
+                    elif self.type == "values":
+                        return fn(gr.SelectData(index, self.samples[index]))
+                    else:  # type == "tuple"
+                        return fn(gr.SelectData(index, (index, self.samples[index])))
+
+            # Handle any other select events
+            return fn(evt)
+
+        # Register both click and select events
+        self.click(
+            fn=wrapped_fn, inputs=inputs, outputs=outputs, api_name=api_name, **kwargs
+        )
+        return self.on(
+            "select", wrapped_fn, inputs, outputs, api_name=api_name, **kwargs
+        )
