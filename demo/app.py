@@ -3,34 +3,35 @@ from gradio_dataset import dataset
 from gradio_modal_component import modal_component
 
 
-def init_ds_two_col():
+# Initialize a three-column dataset for testing
+def init_ds_three_col():
     ds = [
         [
             "Text 1",
             "<img src='https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1u64v34tov7a3tdqitrz.png' width='100px' height='100px'>",
+            "Description 1",
         ],
         [
             "Text 2",
             "<img src='https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1u64v34tov7a3tdqitrz.png' width='100px' height='100px'>",
+            "Description 2",
         ],
         [
             "Text 3",
             "<img src='https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1u64v34tov7a3tdqitrz.png' width='100px' height='100px'>",
+            "Description 3",
         ],
         [
             "Text 4",
             "<img src='https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1u64v34tov7a3tdqitrz.png' width='100px' height='100px'>",
+            "Description 4",
         ],
         [
             "Text 5",
             "<img src='https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1u64v34tov7a3tdqitrz.png' width='100px' height='100px'>",
+            "Description 5",
         ],
     ]
-    return ds
-
-
-def init_ds_one_col():
-    ds = [["Text 1"], ["Text 2"], ["Text 3"], ["Text 4"], ["Text 5"]]
     return ds
 
 
@@ -49,7 +50,7 @@ def get_selection(evt: gr.SelectData):
                 # View Profile
                 - You are viewing the profile number `{evt.index}`
                 - Profile content:
-                    -  {evt.row_value}"""
+                    - {evt.row_value}"""
             return gr.update(visible=True), content
         if evt.value["menu_choice"] == "Edit":
             # Display the modal with the selected value
@@ -66,20 +67,28 @@ with gr.Blocks() as demo:
     ) as profileModal:
         modal_text = gr.Markdown(f"")
 
-    # Define the dataset
-    two_col_ds = dataset(
+    # Define the three-column dataset
+    three_col_ds = dataset(
         components=[
             gr.Textbox(visible=False, interactive=True),
             gr.HTML(visible=False),
+            gr.Textbox(visible=False, interactive=True),  # Added third column
         ],
-        headers=["Textbox", "Image"],
-        label="Two Columns Test",
-        samples=init_ds_two_col(),
+        headers=[
+            "Textbox",
+            "Image",
+            "Description",
+        ],  # Updated headers for three columns
+        label="Three Columns Test",
+        samples=init_ds_three_col(),  # Use the new three-column dataset
         menu_choices=["View Profile", "Edit", "Delete"],
+        header_sort=True,
     )
 
     # Set the select event to update modal visibility and content
-    two_col_ds.select(fn=get_selection, inputs=None, outputs=[profileModal, modal_text])
+    three_col_ds.select(
+        fn=get_selection, inputs=None, outputs=[profileModal, modal_text]
+    )
 
 if __name__ == "__main__":
     demo.launch()

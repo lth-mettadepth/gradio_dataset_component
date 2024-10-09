@@ -555,14 +555,23 @@
     font-weight: inherit;
     color: inherit;
     padding: 0;
-    text-align: left;
     width: 100%;
+    position: relative; /* Add this */
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: center;
   }
 
+  /* Add a wrapper for the header text */
+  .header-text {
+    text-align: center;
+  }
+
+  /* Style for the sort icon */
   .sort-icon {
+    position: absolute; /* Add this */
+    right: 0; /* Add this */
+    top: 50%; /* Add this */
+    transform: translateY(-50%); /* Add this */
     margin-left: 0.5em;
   }
 </style>
