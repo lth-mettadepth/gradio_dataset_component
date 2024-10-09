@@ -12,7 +12,7 @@ from gradio.components.base import (
     Component,
     get_component_instance,
 )
-from gradio.events import Events
+from gradio.events import Events, SelectData
 
 
 class dataset(Component):
@@ -44,8 +44,9 @@ class dataset(Component):
         proxy_url: str | None = None,
         sample_labels: list[str] | None = None,
         menu_icon: str | None = None,
-        menu_choices: List[str] | None = None,
+        menu_choices: list[str] | None = None,
         header_sort: bool = False,
+        manual_sort: bool = False,
     ):
         """
         Parameters:
@@ -65,6 +66,10 @@ class dataset(Component):
             min_width: minimum pixel width, will wrap if not sufficient screen space to satisfy this value. If a certain scale value results in this Component being narrower than min_width, the min_width parameter will be respected first.
             proxy_url: The URL of the external Space used to load this component. Set automatically when using `gr.load()`. This should not be set manually.
             sample_labels: A list of labels for each sample. If provided, the length of this list should be the same as the number of samples, and these labels will be used in the UI instead of rendering the sample values.
+            menu_icon: The icon to use for the menu choices. If not provided, a default icon will be used.
+            menu_choices: A list of menu choices to display in the action column. If provided, the length of this list should be the same as the number of samples, and these choices will be displayed in the action column.
+            header_sort: If True, the dataset will be sortable by clicking on the headers. The `select` event will return the index of the column that was clicked and the sort order.
+            manual_sort: If True, the dataset will be sortable by clicking on the headers, but the sorting will not be done automatically. The `select` event will return the index of the column that was clicked and the sort order.
         """
         super().__init__(
             visible=visible,
@@ -83,6 +88,7 @@ class dataset(Component):
         self.header_sort = header_sort
         self.sort_column = None
         self.sort_order = None
+        self.manual_sort = manual_sort
 
         if component_props is None:
             self.component_props = [
@@ -134,28 +140,28 @@ class dataset(Component):
         self.samples_per_page = samples_per_page
         self.sample_labels = sample_labels
 
-    # def api_info(self) -> dict[str, str]:
-    #     return {"type": "integer", "description": "index of selected example"}
-    def api_info(self) -> dict[str, Any]:
-        return {
-            "type": {
-                "payload": "object",
-                "properties": {
-                    "index": {"type": "integer"},
-                    "sort": {
-                        "type": "object",
-                        "properties": {
-                            "column": {"type": "integer"},
-                            "order": {
-                                "type": "string",
-                                "enum": ["ascending", "descending"],
-                            },
-                        },
-                    },
-                },
-            },
-            "description": "index of selected example or sorting information",
-        }
+    def api_info(self) -> dict[str, str]:
+        return {"type": "integer", "description": "index of selected example"}
+    # def api_info(self) -> dict[str, Any]:
+    #     return {
+    #         "type": {
+    #             "payload": "object",
+    #             "properties": {
+    #                 "index": {"type": "integer"},
+    #                 "sort": {
+    #                     "type": "object",
+    #                     "properties": {
+    #                         "column": {"type": "integer"},
+    #                         "order": {
+    #                             "type": "string",
+    #                             "enum": ["ascending", "descending"],
+    #                         },
+    #                     },
+    #                 },
+    #             },
+    #         },
+    #         "description": "index of selected example or sorting information",
+    #     }
 
     def get_config(self):
         config = super().get_config()
@@ -173,12 +179,13 @@ class dataset(Component):
             config["component_ids"].append(component._id)
 
         config["header_sort"] = self.header_sort
+        config["manual_sort"] = self.manual_sort
         config["sort_column"] = self.sort_column
         config["sort_order"] = self.sort_order
         return config
 
     def sort_samples(self, column_index: int, order: str):
-        if not self.header_sort:
+        if not self.header_sort or self.manual_sort:
             return
 
         self.sort_column = column_index
@@ -196,19 +203,22 @@ class dataset(Component):
         Returns:
             Passes the selected sample either as a `list` of data corresponding to each input component (if `type` is "value") or as an `int` index (if `type` is "index"), or as a `tuple` of the index and the data (if `type` is "tuple").
         """
-        # if payload is None:
-        #     return None
         if isinstance(payload, dict) and "menu_choice" in payload:
             return {"index": payload["index"], "menu_choice": payload["menu_choice"]}
-        if "sort" in payload:
-            self.sort_samples(payload["sort"]["column"], payload["sort"]["order"])
-            return None
-        if self.type == "index":
-            return payload
-        elif self.type == "values":
-            return self.raw_samples[payload]
-        elif self.type == "tuple":
-            return payload, self.raw_samples[payload]
+        # if "sort" in payload:
+        #     self.sort_samples(payload["sort"]["column"], payload["sort"]["order"])
+        #     if self.manual_sort:
+        #         return {"index": payload["sort"]["column"], "value": payload["sort"]}
+        #     return None
+        elif "index" in payload:
+            index = payload["index"]
+            if self.type == "index":
+                return index
+            elif self.type == "values":
+                return self.raw_samples[index]
+            elif self.type == "tuple":
+                return index, self.raw_samples[index]
+        return None
 
     def postprocess(self, value: int | list | None) -> int | None:
         """
@@ -252,21 +262,25 @@ class dataset(Component):
         if outputs is None:
             outputs = []
 
-        def wrapped_fn(evt: gr.SelectData | dict) -> Any:
+        def wrapped_fn(evt: SelectData | dict) -> Any:
             # Handle menu selection events
             if isinstance(evt, dict):
                 if "menu_choice" in evt:
-                    return fn(gr.SelectData(evt["index"], evt["menu_choice"]))
-                elif "sort" in evt:
-                    return None
-                elif "index" in evt:  # Handle row click events
+                    return fn(SelectData(evt["index"], evt["menu_choice"]))
+                # elif "sort" in evt:
+                #     # Handle sorting event
+                #     if self.manual_sort:
+                #         return fn(SelectData(target=self, data=evt["sort"]))
+                #     self.sort_samples(evt["sort"]["column"], evt["sort"]["order"])
+                #     return fn(SelectData(target=self, data=evt["sort"]))
+                elif "index" in evt:
                     index = evt["index"]
                     if self.type == "index":
-                        return fn(gr.SelectData(index, index))
+                        return fn(SelectData(target=self, data={"index": index, "value": index}))
                     elif self.type == "values":
-                        return fn(gr.SelectData(index, self.samples[index]))
+                        return fn(SelectData(target=self, data={"index": index, "value": self.samples[index]}))
                     else:  # type == "tuple"
-                        return fn(gr.SelectData(index, (index, self.samples[index])))
+                        return fn(SelectData(target=self, data={"index": index, "value": (index, self.samples[index])}))
 
             # Handle any other select events
             return fn(evt)

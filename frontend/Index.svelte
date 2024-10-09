@@ -31,6 +31,7 @@
   export let header_sort = false;
   export let sort_column: number | null = null;
   export let sort_order: "ascending" | "descending" | null = null;
+  export let manual_sort: boolean = false;
   export let gradio: Gradio<{
     click: number;
     select: SelectData;
@@ -56,6 +57,10 @@
   let current_hover = -1;
   let active_menu: number | null = null;
 
+  function simplifyRowData(row: any[]): string[] {
+    return row.map((item) => item.value);
+  }
+
   function handle_mouseenter(i: number): void {
     current_hover = i;
   }
@@ -71,7 +76,7 @@
   }
 
   function handleSort(columnIndex: number) {
-    if (!header_sort) return;
+    if (!header_sort && !manual_sort) return;
 
     if (sort_column === columnIndex) {
       sort_order = sort_order === "ascending" ? "descending" : "ascending";
@@ -81,13 +86,19 @@
     }
 
     gradio.dispatch("select", {
-      sort: { column: sort_column, order: sort_order },
+      index: sort_column,
+      value: { column: sort_column, order: sort_order },
     });
   }
 
-  $: sortedSamples = [...samples];
+  $: sortedSamples = samples ? [...samples] : [];
   $: {
-    if (header_sort && sort_column !== null && sort_order !== null) {
+    if (
+      header_sort &&
+      !manual_sort &&
+      sort_column !== null &&
+      sort_order !== null
+    ) {
       sortedSamples.sort((a, b) => {
         const aValue = a[sort_column];
         const bValue = b[sort_column];
@@ -172,7 +183,13 @@
     );
   }
 
-  $: component_map, get_component_meta(selected_samples);
+  $: component_map,
+    get_component_meta(
+      sortedSamples.slice(
+        page * samples_per_page,
+        (page + 1) * samples_per_page
+      )
+    );
 </script>
 
 <Block
@@ -249,16 +266,16 @@
           <tr class="tr-head">
             {#each headers as header, index}
               <th>
-                {#if header_sort}
+                {#if header_sort || manual_sort}
                   <button
                     on:click={() => handleSort(index)}
                     class="sort-button"
                   >
                     {header}
                     {#if sort_column === index}
-                      <span class="sort-icon"
-                        >{sort_order === "ascending" ? "▲" : "▼"}</span
-                      >
+                      <span class="sort-icon">
+                        {sort_order === "ascending" ? "▲" : "▼"}
+                      </span>
                     {/if}
                   </button>
                 {:else}
@@ -273,7 +290,6 @@
         </thead>
         <tbody>
           {#each component_meta as sample_row, i}
-            <!-- {#each sortedSamples as sample_row, i} -->
             <tr class="tr-body">
               {#each sample_row as { value, component }, j}
                 {@const component_name = components[j]}
@@ -284,14 +300,12 @@
                       : 'auto'}"
                     class={component_name}
                     on:click={() => {
-                      // value = i + page * samples_per_page;
                       gradio.dispatch("click", value);
                       gradio.dispatch("select", {
                         index: [i, j],
                         value: value,
-                        row_value: sample_row,
+                        row_value: simplifyRowData(sample_row),
                       });
-                      console.log("row", i, "col", j, "value", sample_row);
                     }}
                     on:mouseenter={() => handle_mouseenter(i)}
                     on:mouseleave={() => handle_mouseleave()}
@@ -326,7 +340,9 @@
                   </button>
 
                   {#if active_menu === i}
-                    <div class="menu-popup">
+                    <div
+                      class={`menu-popup ${component_meta.length - 1 === i ? "last-item" : ""}`}
+                    >
                       {#each menu_choices as choice}
                         <button
                           class="menu-item"
@@ -370,6 +386,7 @@
     width: var(--size-full);
     max-width: var(--size-full);
     color: var(--body-text-color);
+    background: violet;
   }
 
   .hide {
@@ -494,7 +511,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 2px;
     border-radius: 4px;
   }
 
@@ -523,25 +540,30 @@
     padding: 4px 8px;
   }
 
+  .menu-popup.last-item {
+    top: unset;
+    bottom: 0;
+    transform: unset;
+  }
+
   .menu-item {
     display: block;
     width: 100%;
-    padding: var(--size-2) var(--size-4);
+    padding: var(--size-1) var(--size-2);
     text-align: left;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px 8px;
     background-size: 0 100%;
     background-repeat: no-repeat;
-    transition: all 0.5s;
+    transition: all 0.4s;
   }
 
   .menu-item:hover {
     background-image: linear-gradient(to right, #fff3eb, #fff3eb);
     background-repeat: no-repeat;
     background-size: 100% 100%;
-    transition: all 0.5s;
+    transition: all 0.4s;
   }
 
   .menu-item + .menu-item {
